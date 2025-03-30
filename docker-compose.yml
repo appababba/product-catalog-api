@@ -1,0 +1,46 @@
+version: '3.8' # Docker Compose file version
+
+services:
+  # Spring Boot Application service ('app')
+  app:
+    build: . # Build the image from the Dockerfile in the current directory
+    container_name: product-catalog-api-app # Explicit name for this container
+    ports:
+      # Map host port 8080 to container port 8080 (Host:Container)
+      - "8080:8080"
+    environment:
+      # Database connection settings for the Spring Boot app
+      # 'db' is the hostname of the database service below (Compose handles networking)
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/product_catalog_db
+      # DB username - should match POSTGRES_USER in the 'db' service
+      SPRING_DATASOURCE_USERNAME: postgres
+      # DB password - use .env file for this ideally, or defaults to '0000'
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-0000}
+      # Let Hibernate update the DB schema on startup (good for dev)
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+    # Ensures the 'db' service is started before this 'app' service
+    depends_on:
+      - db
+
+  # PostgreSQL Database service ('db')
+  db:
+    image: postgres:15-alpine # Use official Postgres 15 image (Alpine is smaller)
+    container_name: product-catalog-db # Explicit name for this container
+    environment:
+      # Environment variables to configure the Postgres container on startup
+      POSTGRES_DB: product_catalog_db # Database name to create automatically
+      POSTGRES_USER: postgres # Default username to create/use
+      # Password for the user (use .env or defaults to '0000')
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-0000}
+    volumes:
+      # Mount a named volume to persist database data outside the container
+      # 'postgres_data' volume maps to the default Postgres data directory
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      # Map host port 5433 to container port 5432
+      # Use 5433 on host to avoid conflicts if Postgres is running locally on 5432
+      - "5433:5432"
+
+# Define the named volume used by the 'db' service
+volumes:
+  postgres_data: # Docker manages this volume automatically
